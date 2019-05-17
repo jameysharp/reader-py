@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+import feeds
+import scrapy
+from scrapy.crawler import CrawlerProcess
+from scrapy.settings import Settings
+import persistent
+import pprint
+import settings
+import sys
+from twisted.internet import defer
+
+
+full_settings = Settings()
+full_settings.setmodule(settings)
+
+process = CrawlerProcess(full_settings)
+crawler = persistent.Crawler(full_settings)
+process.crawl(crawler)
+
+def show_results(results):
+    pprint.pprint(results)
+    crawler.stop()
+
+defer.DeferredList([
+    feeds.full_history(crawler, feed).addCallback(feeds.deduplicate_entries)
+    for feed in sys.argv[1:]
+], consumeErrors=True).addBoth(show_results)
+
+process.start()
