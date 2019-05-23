@@ -36,3 +36,7 @@ HTTPCACHE_DIR = 'httpcache'
 
 # don't filter duplicates
 DUPEFILTER_CLASS = 'scrapy.dupefilters.BaseDupeFilter'
+
+DEFAULT_REQUEST_HEADERS = {
+    "Cache-Control": "max-stale", # XXX: only during development
+}
