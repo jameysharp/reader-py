@@ -12,7 +12,9 @@ def format_timestamp(tup):
 
 
 def extract_feed(response):
-    response.headers.setdefault('Content-Location', response.url)
+    # headers.setdefault returns a list of bytestrings no matter what you pass it
+    url = response.headers.setdefault('Content-Location', response.url)[0].decode('ascii')
+
     doc = feedparser.parse(
         io.BytesIO(response.body),
         response_headers=response.headers,
@@ -36,6 +38,7 @@ def extract_feed(response):
             "link": e.link,
             "published": format_timestamp(e.get("published_parsed")),
             "id": e.get("id", e.link),
+            "source": url,
         }
         for e in doc.entries
         if "link" in e
