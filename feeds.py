@@ -60,14 +60,6 @@ def extract_feed(response):
     }
 
 
-def sort_entries(doc, reverse=False):
-    # assume entries with identical or missing timestamps were listed in
-    # reverse order
-    doc["entries"].sort(reverse=True, key=lambda e: e["published"])
-    if not reverse:
-        doc["entries"].reverse()
-
-
 @defer.inlineCallbacks
 def full_history(crawler, url):
     # might need to retry to find the subscription document
@@ -98,6 +90,11 @@ def full_history(crawler, url):
         result = yield from_rfc5005(crawler, base, url)
     else:
         raise FeedError("document {!r} is not complete but doesn't link to archives".format(url))
+
+    # assume entries with identical or missing timestamps were listed in
+    # reverse order
+    result["entries"].sort(reverse=True, key=lambda e: e["published"])
+    result["entries"].reverse()
 
     defer.returnValue(result)
 
