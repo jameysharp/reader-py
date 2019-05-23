@@ -92,21 +92,32 @@ def full_history(crawler, url):
         # found the right subscription document
         break
 
+    if base["complete"]:
+        result = base
+    elif "prev-archive" in base["links"]:
+        result = yield from_rfc5005(crawler, base, url)
+    else:
+        raise FeedError("document {!r} is not complete but doesn't link to archives".format(url))
+
+    defer.returnValue(result)
+
+
+@defer.inlineCallbacks
+def from_rfc5005(crawler, base, url):
     results = [base]
-    if not base["complete"]:
-        while "prev-archive" in base["links"]:
-            later_archive = url
-            url = base["links"]["prev-archive"]
-            response = yield crawler.enqueue_request(scrapy.Request(
-                url,
-                headers={
-                    # archive documents should always be taken from the cache
-                    "Cache-Control": "max-stale",
-                    "Referer": later_archive,
-                },
-            ))
-            base = extract_feed(response)
-            results.append(base)
+    while "prev-archive" in base["links"]:
+        later_archive = url
+        url = base["links"]["prev-archive"]
+        response = yield crawler.enqueue_request(scrapy.Request(
+            url,
+            headers={
+                # archive documents should always be taken from the cache
+                "Cache-Control": "max-stale",
+                "Referer": later_archive,
+            },
+        ))
+        base = extract_feed(response)
+        results.append(base)
 
     defer.returnValue(results)
 
