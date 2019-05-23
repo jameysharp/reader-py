@@ -5,6 +5,10 @@ import time
 from twisted.internet import defer
 
 
+class FeedError(Exception):
+    pass
+
+
 def format_timestamp(tup):
     if not tup:
         return None
@@ -83,8 +87,7 @@ def full_history(crawler, url):
                 url = current
                 continue
         elif base["archive"]:
-            print("document {!r} is an archive and doesn't specify the current document, giving up".format(url))
-            return
+            raise FeedError("document {!r} is an archive and doesn't specify the current document".format(url))
 
         # found the right subscription document
         break
