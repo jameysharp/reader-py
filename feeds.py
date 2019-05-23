@@ -44,21 +44,14 @@ def extract_feed(response):
 
     entries = [
         {
-            "title": e.get("title", ""),
-            "link": e.link,
             "published": format_timestamp(e.get("published_parsed")),
-            "id": e.get("id", e.link),
+            "id": e.id,
             "source": url,
         }
         for e in doc.entries
-        if "link" in e
     ]
 
     return {
-        "etag": doc.get("etag"),
-        "modified": doc.get("modified"),
-        "title": doc.feed.get("title"),
-        "description": doc.feed.get("description"),
         "archive": is_archive,
         "complete": is_complete,
         "links": links,
@@ -92,7 +85,7 @@ def full_history(crawler, url):
         break
 
     if base["complete"]:
-        result = base
+        result = base["entries"]
     elif "prev-archive" in base["links"]:
         result = yield from_rfc5005(crawler, base, url)
     elif wordpress_generated(response.headers.getlist("Link"), base["generator"]):
@@ -102,20 +95,15 @@ def full_history(crawler, url):
 
     # assume entries with identical or missing timestamps were listed in
     # reverse order
-    result["entries"].sort(reverse=True, key=lambda e: e["published"])
-    result["entries"].reverse()
+    result.sort(reverse=True, key=lambda e: e["published"])
+    result.reverse()
 
     defer.returnValue(result)
 
 
 @defer.inlineCallbacks
 def from_rfc5005(crawler, base, url):
-    combined = base
-
-    del combined["archive"]
-    del combined["complete"]
-
-    entries = combined["entries"]
+    entries = base["entries"]
     seen = set()
 
     for entry in entries:
@@ -140,7 +128,7 @@ def from_rfc5005(crawler, base, url):
             else:
                 print("discarding duplicate entry {!r}".format(entry["id"]))
 
-    defer.returnValue(combined)
+    defer.returnValue(entries)
 
 
 def query_string_replace(url, **kwargs):
@@ -172,9 +160,10 @@ def from_wordpress(crawler, url):
     )
 
     response = yield crawler.enqueue_request(scrapy.Request(url))
-    combined = extract_feed(response)
-    url = combined["links"].get("self") or response.headers.get("Content-Location") or response.url
+    feed = extract_feed(response)
+    url = feed["links"].get("self") or response.headers.get("Content-Location") or response.url
 
+    entries = feed["entries"]
     for page in itertools.count(2):
         next_url = query_string_replace(url, paged=page)
 
@@ -192,6 +181,6 @@ def from_wordpress(crawler, url):
 
         url = next_url
         feed = extract_feed(response)
-        combined["entries"].extend(feed["entries"])
+        entries.extend(feed["entries"])
 
-    defer.returnValue(combined)
+    defer.returnValue(entries)
