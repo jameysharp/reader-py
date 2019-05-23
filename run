@@ -23,7 +23,7 @@ def show_results(results):
     crawler.stop()
 
 defer.DeferredList([
-    feeds.full_history(crawler, feed).addCallback(feeds.deduplicate_entries)
+    feeds.full_history(crawler, feed)
     for feed in sys.argv[1:]
 ], consumeErrors=True).addBoth(show_results)
 

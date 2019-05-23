@@ -104,7 +104,17 @@ def full_history(crawler, url):
 
 @defer.inlineCallbacks
 def from_rfc5005(crawler, base, url):
-    results = [base]
+    combined = base
+
+    del combined["archive"]
+    del combined["complete"]
+
+    entries = combined["entries"]
+    seen = set()
+
+    for entry in entries:
+        seen.add(entry["id"])
+
     while "prev-archive" in base["links"]:
         later_archive = url
         url = base["links"]["prev-archive"]
@@ -117,33 +127,11 @@ def from_rfc5005(crawler, base, url):
             },
         ))
         base = extract_feed(response)
-        results.append(base)
-
-    defer.returnValue(results)
-
-
-def deduplicate_entries(docs):
-    docs = iter(docs)
-    try:
-        combined = next(docs).copy()
-    except StopException:
-        return {}
-
-    del combined["archive"]
-    del combined["complete"]
-
-    entries = combined["entries"] = combined["entries"].copy()
-    seen = set()
-
-    for entry in entries:
-        seen.add(entry["id"])
-
-    for doc in docs:
-        for entry in doc["entries"]:
+        for entry in base["entries"]:
             if entry["id"] not in seen:
                 entries.append(entry)
                 seen.add(entry["id"])
             else:
                 print("discarding duplicate entry {!r}".format(entry["id"]))
 
-    return combined
+    defer.returnValue(combined)
