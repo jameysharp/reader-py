@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
+import combine
 import feeds
+import functools
 import scrapy
 from scrapy.crawler import CrawlerProcess
 from scrapy.settings import Settings
@@ -23,7 +25,11 @@ def show_results(results):
     crawler.stop()
 
 defer.DeferredList([
-    feeds.full_history(crawler, feed)
+    feeds.full_history(crawler, feed).addCallback(functools.partial(
+        combine.export_archive,
+        crawler,
+        combine.make_filename(feed),
+    ))
     for feed in sys.argv[1:]
 ], consumeErrors=True).addBoth(show_results)
 
