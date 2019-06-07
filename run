@@ -2,16 +2,15 @@
 
 import combine
 import feeds
-import functools
-import scrapy
 from scrapy.crawler import CrawlerProcess
 from scrapy.settings import Settings
 import persistent
-import pprint
 import settings
-import sys
-from twisted.internet import defer
+from tornado.platform.twisted import TwistedIOLoop
+import tornado.web
 
+
+TwistedIOLoop().install()
 
 full_settings = Settings()
 full_settings.setmodule(settings)
@@ -20,17 +19,25 @@ process = CrawlerProcess(full_settings)
 crawler = persistent.Crawler(full_settings)
 process.crawl(crawler)
 
-def show_results(results):
-    pprint.pprint(results)
-    crawler.stop()
 
-defer.DeferredList([
-    feeds.full_history(crawler, feed).addCallback(functools.partial(
-        combine.export_archive,
-        crawler,
-        combine.make_filename(feed),
-    ))
-    for feed in sys.argv[1:]
-], consumeErrors=True).addBoth(show_results)
+class FeedHandler(tornado.web.RequestHandler):
+    @tornado.gen.coroutine
+    def get(self, feed):
+        entries = yield feeds.full_history(crawler, feed)
+        self.set_header("Content-Type", "text/plain")
+        for e in entries:
+            self.write("{}\t{}\n".format(e["source"], e["id"]))
+        self.finish()
+
+
+application = tornado.web.Application(
+    [
+        (r"/history/(.+)", FeedHandler),
+        (r"/read/(.+)", combine.ExportHandler, {"crawler": crawler}),
+        (r"/entry/([^/]+)/(.+)", combine.EntryHandler, {"crawler": crawler}, "entry"),
+    ],
+    static_path="static/",
+)
+application.listen(8888)
 
 process.start()

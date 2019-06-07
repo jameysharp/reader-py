@@ -1,6 +1,7 @@
 import base64
 from collections import defaultdict
 import feedparser
+import feeds
 from hashlib import sha256
 import html
 from io import BytesIO
@@ -9,6 +10,7 @@ import os.path
 import scrapy
 import shutil
 import time
+import tornado.web
 from twisted.internet import defer
 
 
@@ -31,46 +33,85 @@ feed_entry = (
 feed_footer = "</feed>\n"
 
 
-def make_filename(url):
-    digest = sha256(url.encode("ascii")).digest()
-    return base64.urlsafe_b64encode(digest[:15])
+class ExportHandler(tornado.web.RequestHandler):
+    def initialize(self, crawler):
+        self.crawler = crawler
+
+    @tornado.gen.coroutine
+    def get(self, feed):
+        entries = yield feeds.full_history(self.crawler, feed)
+        by_source = yield expand_by_source(self.crawler, entries)
+
+        title = (yield fetch_feed_doc(self.crawler, feed, {
+            "Cache-Control": "max-stale",
+        })).feed.title
+
+        expanded_entries = {}
+        for source_title, source_entries in by_source:
+            pick_distinct_hashes(source_entries)
+            expanded_entries.update(source_entries)
+
+        for entry in expanded_entries.values():
+            if "link" not in entry:
+                entry["link"] = self.reverse_url("entry", entry["hash"], entry["source"])
+
+        stylesheet = self.static_url("reader.xsl")
+        self.set_header("Content-Type", "application/xml")
+        write_index(self, entries, stylesheet, title, expanded_entries)
+        self.finish()
 
 
-@defer.inlineCallbacks
-def export_archive(crawler, outdir, entries):
-    try:
-        os.mkdir(outdir)
-    except FileExistsError:
-        pass
+class EntryHandler(tornado.web.RequestHandler):
+    def initialize(self, crawler):
+        self.crawler = crawler
 
-    by_source = yield expand_by_source(crawler, entries)
+    @tornado.gen.coroutine
+    def get(self, entry_hash, source):
+        doc = yield fetch_feed_doc(self.crawler, source, {
+            "Cache-Control": "max-stale",
+        })
 
-    title = ""
-    expanded_entries = {}
-    for source_title, source_entries in by_source:
-        # I dunno, pick the longest title I guess?
-        if len(source_title) > len(title):
-            title = source_title
+        for entry in doc.entries:
+            if hash_entry_id(entry.id).startswith(entry_hash):
+                self.write(entry.content[0].value)
+                self.finish()
+                return
 
-        expanded_entries.update(source_entries)
+        self.send_error(400)
 
-    for entry_id, entry in expanded_entries.items():
-        if "link" in entry:
-            continue
 
-        link = make_filename(entry_id) + b".html"
+def pick_distinct_hashes(entries):
+    """
+    Update entries to have a new "hash" key derived from the entry's unique ID,
+    but the shortest possible string that distinguishes this entry from the
+    others in `entries`.
+    """
 
-        with open(os.path.join(outdir, link), "w") as f:
-            f.write("<!-- feed {} id {} -->\n".format(entry["source"], entry_id))
-            f.write(entry["content"])
+    # Initially set "hash" to a SHA256 hash, so it's _really_ unlikely to have
+    # collisions, which would lead to duplicates. Encode it using the URL-safe
+    # variant of base64 so it can be used as a path segment in a URL without
+    # confusion.
+    for entry_id, entry in entries.items():
+        entry["hash"] = hash_entry_id(entry_id)
 
-        entry["link"] = link.decode("ascii")
+    # Now we just need to truncate all the hashes to the shortest prefix which
+    # distinguishes between all of them. If we sort them lexicographically,
+    # then the longest common prefix for an entry must be its immediate
+    # neighbor, either one before or one after.
+    entries = sorted(entries.values(), key=lambda entry: entry["hash"])
+    lcps = [
+        len(os.path.commonprefix((a["hash"], b["hash"])))
+        for (a, b) in zip(entries, entries[1:])
+    ]
 
-    with open(os.path.join(outdir, b"index.xml"), "w") as f:
-        write_index(f, entries, "reader.xsl", title, expanded_entries)
+    # We need to keep the shortest prefix of each hash which is still longer
+    # than the longest prefix it shares with any other hash in the set.
+    for l, entry in zip(map(max, lcps + [0], [0] + lcps), entries):
+        entry["hash"] = entry["hash"][:l+1]
 
-    shutil.copy(b"reader.xsl", outdir)
-    return outdir
+
+def hash_entry_id(entry_id):
+    return base64.urlsafe_b64encode(sha256(entry_id.encode()).digest()).decode("ascii")
 
 
 def write_index(f, entries, stylesheet, title, expanded_entries):
