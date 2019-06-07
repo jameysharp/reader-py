@@ -14,7 +14,7 @@ from twisted.internet import defer
 
 feed_header = """
 <?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet href="reader.xsl" type="text/xsl"?>
+<?xml-stylesheet href="{stylesheet}" type="text/xsl"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 <title type="text">{title}</title>
 """.lstrip()
@@ -43,22 +43,38 @@ def export_archive(crawler, outdir, entries):
     except FileExistsError:
         pass
 
-    title, expanded_entries = yield expand_by_source(crawler, outdir, entries)
+    by_source = yield expand_by_source(crawler, outdir, entries)
+
+    title = ""
+    expanded_entries = {}
+    for source_title, source_entries in by_source:
+        # I dunno, pick the longest title I guess?
+        if len(source_title) > len(title):
+            title = source_title
+
+        expanded_entries.update(source_entries)
 
     with open(os.path.join(outdir, b"index.xml"), "w") as f:
-        f.write(feed_header.format(title=html.escape(title)))
-        for entry in entries:
-            f.write(feed_entry.format(
-                id=html.escape(entry["id"]),
-                **{
-                    k: html.escape(v)
-                    for k, v in expanded_entries[entry["id"]].items()
-                },
-            ))
-        f.write(feed_footer)
+        write_index(f, entries, "reader.xsl", title, expanded_entries)
 
     shutil.copy(b"reader.xsl", outdir)
     return outdir
+
+
+def write_index(f, entries, stylesheet, title, expanded_entries):
+    f.write(feed_header.format(
+        stylesheet=html.escape(stylesheet),
+        title=html.escape(title),
+    ))
+    for entry in entries:
+        f.write(feed_entry.format(
+            id=html.escape(entry["id"]),
+            **{
+                k: html.escape(v)
+                for k, v in expanded_entries[entry["id"]].items()
+            },
+        ))
+    f.write(feed_footer)
 
 
 def expand_by_source(crawler, outdir, entries):
@@ -74,23 +90,28 @@ def expand_by_source(crawler, outdir, entries):
     return defer.gatherResults([
         expand_source(crawler, outdir, source, frozenset(ids))
         for source, ids in by_source.items()
-    ], consumeErrors=True).addCallback(merge_by_source)
+    ], consumeErrors=True)
+
+
+@defer.inlineCallbacks
+def fetch_feed_doc(crawler, feed, headers=None):
+    response = yield crawler.enqueue_request(scrapy.Request(
+        feed,
+        headers=headers or {},
+    ))
+
+    response.headers.setdefault('Content-Location', response.url)
+    return feedparser.parse(
+        BytesIO(response.body),
+        response_headers=response.headers,
+    )
 
 
 @defer.inlineCallbacks
 def expand_source(crawler, outdir, source, ids):
-    response = yield crawler.enqueue_request(scrapy.Request(
-        source,
-        headers={
-            "Cache-Control": "max-stale",
-        },
-    ))
-
-    response.headers.setdefault('Content-Location', response.url)
-    doc = feedparser.parse(
-        BytesIO(response.body),
-        response_headers=response.headers,
-    )
+    doc = yield fetch_feed_doc(crawler, source, {
+        "Cache-Control": "max-stale",
+    })
 
     entries = {}
     for entry in doc.entries:
@@ -115,15 +136,3 @@ def expand_source(crawler, outdir, source, ids):
         }
 
     return doc.feed.title, entries
-
-
-def merge_by_source(by_source):
-    merged_title = ""
-    merged_entries = {}
-    for title, entries in by_source:
-        # I dunno, pick the longest title I guess?
-        if len(title) > len(merged_title):
-            merged_title = title
-
-        merged_entries.update(entries)
-    return merged_title, merged_entries
