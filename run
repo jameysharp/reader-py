@@ -2,9 +2,10 @@
 
 import combine
 import feeds
+import os
+import persistent
 from scrapy.crawler import CrawlerProcess
 from scrapy.settings import Settings
-import persistent
 import settings
 from tornado.platform.twisted import TwistedIOLoop
 import tornado.web
@@ -38,6 +39,6 @@ application = tornado.web.Application(
     ],
     static_path="static/",
 )
-application.listen(8888)
+application.listen(int(os.environ.get("PORT", 8888)))
 
 process.start()
