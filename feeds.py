@@ -69,13 +69,13 @@ def full_history(crawler, url):
 
         self = base["links"].get("self")
         if self and self != url:
-            print("document {!r} came from {!r}".format(url, self))
+            crawler.engine.spider.logger.info("document {!r} came from {!r}".format(url, self))
             url = self
 
         current = base["links"].get("current")
         if current:
             if url != current:
-                print("document {!r} is not current, trying again from {!r}".format(url, current))
+                crawler.engine.spider.logger.info("document {!r} is not current, trying again from {!r}".format(url, current))
                 url = current
                 continue
         elif base["archive"]:
@@ -126,7 +126,7 @@ def from_rfc5005(crawler, base, url):
                 entries.append(entry)
                 seen.add(entry["id"])
             else:
-                print("discarding duplicate entry {!r}".format(entry["id"]))
+                crawler.engine.spider.logger.debug("discarding duplicate entry {!r}".format(entry["id"]))
 
     defer.returnValue(entries)
 

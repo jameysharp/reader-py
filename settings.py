@@ -1,3 +1,7 @@
+import os
+
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG")
+
 BOT_NAME = 'feeds'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -36,6 +40,12 @@ HTTPCACHE_DIR = 'httpcache'
 
 # don't filter duplicates
 DUPEFILTER_CLASS = 'scrapy.dupefilters.BaseDupeFilter'
+
+# disable some built-in Scrapy extensions
+EXTENSIONS = {
+    # not really meaningful when crawls are triggered by incoming requests:
+    'scrapy.extensions.logstats.LogStats': None,
+}
 
 DEFAULT_REQUEST_HEADERS = {
     "Cache-Control": "max-stale", # XXX: only during development
