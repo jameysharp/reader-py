@@ -177,9 +177,7 @@ def expand_source(crawler, source, ids):
             "title": entry.title,
         }
 
-        if entry.get("content"):
-            d["content"] = entry.content[0].value
-        else:
+        if not entry.get("content"):
             d["link"] = next(l.href for l in entry.links if l.rel == "alternate")
 
         entries[entry.id] = d
