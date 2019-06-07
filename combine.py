@@ -43,7 +43,7 @@ def export_archive(crawler, outdir, entries):
     except FileExistsError:
         pass
 
-    by_source = yield expand_by_source(crawler, outdir, entries)
+    by_source = yield expand_by_source(crawler, entries)
 
     title = ""
     expanded_entries = {}
@@ -53,6 +53,18 @@ def export_archive(crawler, outdir, entries):
             title = source_title
 
         expanded_entries.update(source_entries)
+
+    for entry_id, entry in expanded_entries.items():
+        if "link" in entry:
+            continue
+
+        link = make_filename(entry_id) + b".html"
+
+        with open(os.path.join(outdir, link), "w") as f:
+            f.write("<!-- feed {} id {} -->\n".format(entry["source"], entry_id))
+            f.write(entry["content"])
+
+        entry["link"] = link.decode("ascii")
 
     with open(os.path.join(outdir, b"index.xml"), "w") as f:
         write_index(f, entries, "reader.xsl", title, expanded_entries)
@@ -77,7 +89,7 @@ def write_index(f, entries, stylesheet, title, expanded_entries):
     f.write(feed_footer)
 
 
-def expand_by_source(crawler, outdir, entries):
+def expand_by_source(crawler, entries):
     by_source = defaultdict(list)
     for entry in entries:
         by_source[entry["source"]].append(entry["id"])
@@ -88,7 +100,7 @@ def expand_by_source(crawler, outdir, entries):
     # parallelism, subject to any crawler policies which limit concurrent
     # requests to the same server.
     return defer.gatherResults([
-        expand_source(crawler, outdir, source, frozenset(ids))
+        expand_source(crawler, source, frozenset(ids))
         for source, ids in by_source.items()
     ], consumeErrors=True)
 
@@ -108,7 +120,7 @@ def fetch_feed_doc(crawler, feed, headers=None):
 
 
 @defer.inlineCallbacks
-def expand_source(crawler, outdir, source, ids):
+def expand_source(crawler, source, ids):
     doc = yield fetch_feed_doc(crawler, source, {
         "Cache-Control": "max-stale",
     })
@@ -118,21 +130,17 @@ def expand_source(crawler, outdir, source, ids):
         if entry.id not in ids:
             continue
 
-        if entry.get("content"):
-            link = make_filename(entry.id) + b".html"
-
-            with open(os.path.join(outdir, link), "w") as f:
-                f.write("<!-- feed {} id {} -->\n".format(source, entry.id))
-                f.write(entry.content[0].value)
-
-            link = link.decode("ascii")
-        else:
-            link = next(l.href for l in entry.links if l.rel == "alternate")
-
-        entries[entry.id] = {
+        d = {
+            "source": source,
             "published": time.strftime("%Y-%m-%dT%H:%M:%SZ", entry.published_parsed),
             "title": entry.title,
-            "link": link,
         }
+
+        if entry.get("content"):
+            d["content"] = entry.content[0].value
+        else:
+            d["link"] = next(l.href for l in entry.links if l.rel == "alternate")
+
+        entries[entry.id] = d
 
     return doc.feed.title, entries
