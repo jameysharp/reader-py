@@ -4,6 +4,15 @@ Full-history RSS feed reader
 This is a prototype feed reader that is designed for reading webcomics,
 serial stories, and other serialized creative works.
 
+Given the URL of an RSS or Atom feed, you can try out my deployment of this prototype by appending that URL to this one:
+
+`http://reader.minilop.net/read/`
+
+Here are a couple of examples you could try:
+
+- <http://reader.minilop.net/read/https://jamey.thesharps.us/feed.xml> (my blog feed, which implements RFC5005)
+- <http://reader.minilop.net/read/https://beesbuzz.biz/comics/lewi/feed> (a webcomic which also implements RFC5005)
+
 This reader differs from every other feed reader that I've seen in two
 significant ways:
 
