@@ -36,7 +36,8 @@ def extract_feed(response):
 
     links = {}
     for link in doc.feed.get("links", ()):
-        links[link["rel"]] = link["href"]
+        if link["rel"] in ("self", "current", "prev-archive"):
+            links[link["rel"]] = link["href"]
 
     generator = doc.feed.get("generator_detail", ())
     if generator:
