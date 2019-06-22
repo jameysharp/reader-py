@@ -57,7 +57,19 @@ class ExportHandler(tornado.web.RequestHandler):
 
         stylesheet = self.static_url("reader.xsl")
         self.set_header("Content-Type", "application/xml")
-        write_index(self, entries, stylesheet, title, expanded_entries)
+        self.write(feed_header.format(
+            stylesheet=html.escape(stylesheet),
+            title=html.escape(title),
+        ))
+        for entry in entries:
+            self.write(feed_entry.format(
+                id=html.escape(entry["id"]),
+                **{
+                    k: html.escape(v)
+                    for k, v in expanded_entries[entry["id"]].items()
+                },
+            ))
+        self.write(feed_footer)
         self.finish()
 
 
@@ -112,22 +124,6 @@ def pick_distinct_hashes(entries):
 
 def hash_entry_id(entry_id):
     return base64.urlsafe_b64encode(sha256(entry_id.encode()).digest()).decode("ascii")
-
-
-def write_index(f, entries, stylesheet, title, expanded_entries):
-    f.write(feed_header.format(
-        stylesheet=html.escape(stylesheet),
-        title=html.escape(title),
-    ))
-    for entry in entries:
-        f.write(feed_entry.format(
-            id=html.escape(entry["id"]),
-            **{
-                k: html.escape(v)
-                for k, v in expanded_entries[entry["id"]].items()
-            },
-        ))
-    f.write(feed_footer)
 
 
 def expand_by_source(crawler, entries):
