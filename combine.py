@@ -14,25 +14,6 @@ import tornado.web
 from twisted.internet import defer
 
 
-feed_header = """
-<?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet href="{stylesheet}" type="text/xsl"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-<title type="text">{title}</title>
-""".lstrip()
-
-feed_entry = (
-    '<entry>'
-    '<published>{published}</published>'
-    '<link rel="alternate" type="text/html" href="{link}"/>'
-    '<title type="text">{title}</title>'
-    '<id>{id}</id>'
-    '</entry>\n'
-)
-
-feed_footer = "</feed>\n"
-
-
 class ExportHandler(tornado.web.RequestHandler):
     def initialize(self, crawler):
         self.crawler = crawler
@@ -51,26 +32,17 @@ class ExportHandler(tornado.web.RequestHandler):
             pick_distinct_hashes(source_entries)
             expanded_entries.update(source_entries)
 
-        for entry in expanded_entries.values():
+        for entry in entries:
+            entry.update(expanded_entries.pop(entry["id"]))
             if "link" not in entry:
                 entry["link"] = self.reverse_url("entry", entry["hash"], entry["source"])
 
+        # expanded_entries better have exactly the IDs from entries
+        assert not expanded_entries
+
         stylesheet = self.static_url("reader.xsl")
         self.set_header("Content-Type", "application/xml")
-        self.write(feed_header.format(
-            stylesheet=html.escape(stylesheet),
-            title=html.escape(title),
-        ))
-        for entry in entries:
-            self.write(feed_entry.format(
-                id=html.escape(entry["id"]),
-                **{
-                    k: html.escape(v)
-                    for k, v in expanded_entries[entry["id"]].items()
-                },
-            ))
-        self.write(feed_footer)
-        self.finish()
+        self.render("export-atom.xml", title=title, entries=entries)
 
 
 class EntryHandler(tornado.web.RequestHandler):

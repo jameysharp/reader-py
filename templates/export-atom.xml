@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="{{ static_url('reader.xsl') }}" type="text/xsl"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+<title type="text">{{ title }}</title>
+{% for entry in entries %}<entry>
+<published>{{ entry['published'] }}</published>
+<link rel="alternate" type="text/html" href="{{ entry['link'] }}"/>
+<title type="text">{{ entry['title'] }}</title>
+<id>{{ entry['id'] }}</id>
+</entry>{% end %}
+</feed>

@@ -38,6 +38,7 @@ application = tornado.web.Application(
         (r"/entry/([^/]+)/(.+)", combine.EntryHandler, {"crawler": crawler}, "entry"),
     ],
     static_path="static/",
+    template_path="templates/",
 )
 application.listen(int(os.environ.get("PORT", 8888)))
 
