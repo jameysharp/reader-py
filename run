@@ -21,6 +21,18 @@ crawler = persistent.Crawler(full_settings)
 process.crawl(crawler)
 
 
+class HomeHandler(tornado.web.RequestHandler):
+    def get(self):
+        try:
+            feed = self.get_argument("feed")
+        except tornado.web.MissingArgumentError:
+            git_rev = os.environ.get("GIT_REV") or "unknown"
+            self.render("home.html", git_rev=git_rev)
+        else:
+            url = self.reverse_url("read", feed)
+            self.redirect(url)
+
+
 class FeedHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self, feed):
@@ -33,8 +45,9 @@ class FeedHandler(tornado.web.RequestHandler):
 
 application = tornado.web.Application(
     [
+        (r"/$", HomeHandler, {}, "home"),
         (r"/history/(.+)", FeedHandler),
-        (r"/read/(.+)", combine.ExportHandler, {"crawler": crawler}),
+        (r"/read/(.+)", combine.ExportHandler, {"crawler": crawler}, "read"),
         (r"/entry/([^/]+)/(.+)", combine.EntryHandler, {"crawler": crawler}, "entry"),
     ],
     static_path="static/",

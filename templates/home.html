@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Full-history feed reader</title>
+</head>
+<body>
+<h1>Full-history feed reader</h1>
+
+<p>
+This is a prototype feed reader that is designed for reading webcomics,
+serial stories, and other serialized creative works. To use it, you need
+the URL of the RSS or Atom feed that corresponds to the series you want
+to read.
+</p>
+
+<p>
+This implementation only supports WordPress feeds and RFC5005-conforming
+feeds; you'll get an error for anything else. It also does not do feed
+auto-discovery, so most likely the URL you need here either has the word
+"feed" in it or ends with <code>.rss</code> or <code>.xml</code>.
+</p>
+
+<p>
+For more information, including important limitations of this software,
+please see the
+<a href="https://github.com/jameysharp/reader-py/blob/master/README.md" target="_blank" rel="noopener">README</a>.
+</p>
+
+<form action="{{ reverse_url('home') }}" method="GET">
+	<p><label>Feed URL:
+	<input type="text" name="feed" required value="{{ handler.get_argument('feed', '') }}" />
+	</label></p>
+
+	<p>
+	After clicking this button, you may have to wait a long time.
+	That's normal, just be patient. If you get an error message, you
+	can try reloading, but if the next error message comes up pretty
+	quickly, it's probably just broken.
+	</p>
+
+	<p><input type="submit" value="Let's go!" /></p>
+</form>
+
+<footer>
+	{{ request.host }} is running
+	<a href="https://github.com/jameysharp/reader-py" target="_blank" rel="noopener">reader-py</a>,
+	version {{ git_rev }}.
+</footer>
+</body>
+</html>
