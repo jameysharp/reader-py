@@ -20,7 +20,13 @@ class ExportHandler(tornado.web.RequestHandler):
 
     @tornado.gen.coroutine
     def get(self, feed):
-        entries = yield feeds.full_history(self.crawler, feed)
+        try:
+            entries = yield feeds.full_history(self.crawler, feed)
+        except feeds.FeedError as exc:
+            self.set_status(400)
+            self.render("feed-error.html", feed=feed, message=str(exc))
+            return
+
         by_source = yield expand_by_source(self.crawler, entries)
 
         title = (yield fetch_feed_doc(self.crawler, feed, {

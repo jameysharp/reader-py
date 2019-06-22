@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Feed error - Full-history feed reader</title>
+</head>
+<body>
+<h1>Feed error</h1>
+
+<p>Could not fetch the history of
+<code><a href="{{ feed }}" target="_blank" rel="noopener">{{ feed }}</a></code>.
+The following error occurred:</p>
+
+<blockquote><p>{{ message }}</p></blockquote>
+
+<p><a href="{{ reverse_url('home') }}">Try another feed</a></p>
+</body>
+</html>

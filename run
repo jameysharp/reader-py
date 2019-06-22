@@ -36,7 +36,13 @@ class HomeHandler(tornado.web.RequestHandler):
 class FeedHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self, feed):
-        entries = yield feeds.full_history(crawler, feed)
+        try:
+            entries = yield feeds.full_history(crawler, feed)
+        except feeds.FeedError as exc:
+            self.set_status(400)
+            self.render("feed-error.html", feed=feed, message=str(exc))
+            return
+
         self.set_header("Content-Type", "text/plain")
         for e in entries:
             self.write("{}\t{}\n".format(e["source"], e["id"]))
