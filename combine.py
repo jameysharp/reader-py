@@ -1,5 +1,6 @@
 import base64
 from collections import defaultdict
+import datetime
 import feedparser
 import feeds
 from hashlib import sha256
@@ -10,8 +11,20 @@ import os.path
 import scrapy
 import shutil
 import time
+from tornado.locks import Event
 import tornado.web
 from twisted.internet import defer
+from twisted.python.failure import Failure
+
+
+in_progress = {}
+finished = {}
+
+
+def record_finished(result, feed):
+    finished[feed] = result
+    event = in_progress.pop(feed)
+    event.set()
 
 
 class ExportHandler(tornado.web.RequestHandler):
@@ -20,16 +33,30 @@ class ExportHandler(tornado.web.RequestHandler):
 
     @tornado.gen.coroutine
     def get(self, feed):
-        try:
-            entries = yield get_history(
-                feed=feed,
-                crawler=self.crawler,
-                reverse_url=self.application.reverse_url,
-            )
-        except feeds.FeedError as exc:
-            self.set_status(400)
-            self.render("feed-error.html", feed=feed, message=str(exc))
-            return
+        if feed not in finished:
+            if feed not in in_progress:
+                in_progress[feed] = Event()
+                get_history(
+                    feed=feed,
+                    crawler=self.crawler,
+                    reverse_url=self.application.reverse_url,
+                ).addBoth(record_finished, feed)
+
+            try:
+                yield in_progress[feed].wait(datetime.timedelta(seconds=1))
+            except tornado.gen.TimeoutError:
+                self.render("in-progress.html", feed=feed)
+                return
+
+        entries = finished[feed]
+
+        if isinstance(entries, Failure):
+            try:
+                entries.raiseException()
+            except feeds.FeedError as exc:
+                self.set_status(400)
+                self.render("feed-error.html", feed=feed, message=str(exc))
+                return
 
         title = (yield fetch_feed_doc(self.crawler, feed, {
             "Cache-Control": "max-stale",

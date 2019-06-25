@@ -56,12 +56,6 @@ This implementation currently:
   many or all of the entries, especially if you have JavaScript
   disabled. (But it should at least _work_ without JavaScript!)
 
-- provides no feedback about what it is doing. When you ask to read a
-  feed that it doesn't have cached, it will sit there for however long
-  it takes the server to fetch the complete history. Making that more
-  painful: to be polite, I've set a five-second delay between requests
-  to the same upstream IP address
-
 Also, feed readers usually help you remember what you're reading, but
 this one doesn't retain anything outside of basic access logs and the
 contents of its HTTP cache. So it can't keep track of where you left off
