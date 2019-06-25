@@ -157,7 +157,6 @@ def from_wordpress(crawler, url):
         feed="atom",
         order="ASC",
         orderby="modified",
-        paged=1,
     )
 
     response = yield crawler.enqueue_request(scrapy.Request(url))
