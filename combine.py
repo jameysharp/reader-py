@@ -34,7 +34,7 @@ class ExportHandler(tornado.web.RequestHandler):
         })).feed.title
 
         expanded_entries = {}
-        for source_title, source_entries in by_source:
+        for source_entries in by_source:
             pick_distinct_hashes(source_entries)
             expanded_entries.update(source_entries)
 
@@ -46,7 +46,6 @@ class ExportHandler(tornado.web.RequestHandler):
         # expanded_entries better have exactly the IDs from entries
         assert not expanded_entries
 
-        stylesheet = self.static_url("reader.xsl")
         self.set_header("Content-Type", "application/xml")
         self.render("export-atom.xml", title=title, entries=entries)
 
@@ -156,4 +155,4 @@ def expand_source(crawler, source, ids):
 
         entries[entry.id] = d
 
-    return doc.feed.title, entries
+    return entries
