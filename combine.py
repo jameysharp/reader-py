@@ -21,30 +21,19 @@ class ExportHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self, feed):
         try:
-            entries = yield feeds.full_history(self.crawler, feed)
+            entries = yield get_history(
+                feed=feed,
+                crawler=self.crawler,
+                reverse_url=self.application.reverse_url,
+            )
         except feeds.FeedError as exc:
             self.set_status(400)
             self.render("feed-error.html", feed=feed, message=str(exc))
             return
 
-        by_source = yield expand_by_source(self.crawler, entries)
-
         title = (yield fetch_feed_doc(self.crawler, feed, {
             "Cache-Control": "max-stale",
         })).feed.title
-
-        expanded_entries = {}
-        for source_entries in by_source:
-            pick_distinct_hashes(source_entries)
-            expanded_entries.update(source_entries)
-
-        for entry in entries:
-            entry.update(expanded_entries.pop(entry["id"]))
-            if "link" not in entry:
-                entry["link"] = self.reverse_url("entry", entry["hash"], entry["source"])
-
-        # expanded_entries better have exactly the IDs from entries
-        assert not expanded_entries
 
         self.set_header("Content-Type", "application/xml")
         self.render("export-atom.xml", title=title, entries=entries)
@@ -103,20 +92,41 @@ def hash_entry_id(entry_id):
     return base64.urlsafe_b64encode(sha256(entry_id.encode()).digest()).decode("ascii")
 
 
-def expand_by_source(crawler, entries):
+def group_by_source(entries):
     by_source = defaultdict(list)
     for entry in entries:
         by_source[entry["source"]].append(entry["id"])
+    return by_source.items()
+
+
+@defer.inlineCallbacks
+def get_history(crawler, feed, reverse_url):
+    entries = yield feeds.full_history(crawler, feed)
 
     # In this demo where we share an HTTP cache between the two parts, I don't
     # think expand_source will wind up blocking, so these deferreds will all
     # run sequentially. But this demonstrates opportunities in principle for
     # parallelism, subject to any crawler policies which limit concurrent
     # requests to the same server.
-    return defer.gatherResults([
+    by_source = yield defer.gatherResults([
         expand_source(crawler, source, frozenset(ids))
-        for source, ids in by_source.items()
+        for source, ids in group_by_source(entries)
     ], consumeErrors=True)
+
+    expanded_entries = {}
+    for source_entries in by_source:
+        pick_distinct_hashes(source_entries)
+        expanded_entries.update(source_entries)
+
+    for entry in entries:
+        entry.update(expanded_entries.pop(entry["id"]))
+        if "link" not in entry:
+            entry["link"] = reverse_url("entry", entry["hash"], entry["source"])
+
+    # expanded_entries better have exactly the IDs from entries
+    assert not expanded_entries
+
+    return entries
 
 
 @defer.inlineCallbacks
