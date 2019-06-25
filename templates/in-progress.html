@@ -11,6 +11,13 @@
 <code><a href="{{ feed }}" target="_blank" rel="noopener">{{ feed }}</a></code>
 right now. This might take a while.</p>
 
-<p><a href="{{ reverse_url('home') }}" target="_blank">Try another feed</a></p>
+<p><a href="{{ reverse_url('home') }}" target="_blank">Try another feed while you wait</a></p>
+
+{% if progress.events %}
+<p>Progress report, most recent events first:</p>
+<ul>
+{% for event in reversed(progress.events) %}<li>{{ event }}</li>
+{% end %}</ul>
+{% end %}
 </body>
 </html>

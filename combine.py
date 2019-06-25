@@ -6,6 +6,7 @@ import feeds
 from hashlib import sha256
 import html
 from io import BytesIO
+import logging
 import os
 import os.path
 import scrapy
@@ -23,8 +24,25 @@ finished = {}
 
 def record_finished(result, feed):
     finished[feed] = result
-    event = in_progress.pop(feed)
+    event, progress = in_progress.pop(feed)
     event.set()
+
+
+class Progress(object):
+    def __init__(self, logger=None):
+        self.events = []
+        self.logger = logger
+
+    def log(self, lvl, msg):
+        self.events.append(msg)
+        if self.logger:
+            self.logger.log(lvl, "%s", msg)
+
+    def debug(self, msg):
+        self.log(logging.DEBUG, msg)
+
+    def info(self, msg):
+        self.log(logging.INFO, msg)
 
 
 class ExportHandler(tornado.web.RequestHandler):
@@ -35,17 +53,20 @@ class ExportHandler(tornado.web.RequestHandler):
     def get(self, feed):
         if feed not in finished:
             if feed not in in_progress:
-                in_progress[feed] = Event()
+                progress = Progress(self.crawler.engine.spider.logger)
+                in_progress[feed] = (Event(), progress)
                 get_history(
                     feed=feed,
+                    progress=progress,
                     crawler=self.crawler,
                     reverse_url=self.application.reverse_url,
                 ).addBoth(record_finished, feed)
 
             try:
-                yield in_progress[feed].wait(datetime.timedelta(seconds=1))
+                event, progress = in_progress[feed]
+                yield event.wait(datetime.timedelta(seconds=1))
             except tornado.gen.TimeoutError:
-                self.render("in-progress.html", feed=feed)
+                self.render("in-progress.html", feed=feed, progress=progress)
                 return
 
         entries = finished[feed]
@@ -127,8 +148,8 @@ def group_by_source(entries):
 
 
 @defer.inlineCallbacks
-def get_history(crawler, feed, reverse_url):
-    entries = yield feeds.full_history(crawler, feed)
+def get_history(crawler, feed, progress, reverse_url):
+    entries = yield feeds.full_history(crawler, feed, progress)
 
     # In this demo where we share an HTTP cache between the two parts, I don't
     # think expand_source will wind up blocking, so these deferreds will all
