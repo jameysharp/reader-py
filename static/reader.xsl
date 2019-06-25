@@ -9,7 +9,8 @@
 
 <xsl:output method="html" omit-xml-declaration="yes" indent="no"/>
 
-<xsl:param name="iconpath" select="'https://www.comic-rocket.com/media/img/'"/>
+<xsl:param name="iconprev"/>
+<xsl:param name="iconnext"/>
 
 <xsl:template match="/">
 <html>
@@ -58,10 +59,10 @@
 			background-color: #4A1600;
 		}
 		label.before {
-			background-image: url('<xsl:value-of select="$iconpath"/>icon-prevpage.png');
+			background-image: url('<xsl:value-of select="$iconprev"/>');
 		}
 		label.after {
-			background-image: url('<xsl:value-of select="$iconpath"/>icon-nextpage.png');
+			background-image: url('<xsl:value-of select="$iconnext"/>');
 		}
 		#top > .title {
 			flex-grow: 1;
