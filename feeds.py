@@ -62,21 +62,25 @@ def extract_feed(response):
 
 
 @defer.inlineCallbacks
-def full_history(crawler, url):
+def full_history(crawler, url, progress=None):
+    if not progress:
+        progress = crawler.engine.spider.logger
+
     # might need to retry to find the subscription document
+    progress.info("checking {!r}".format(url))
     while True:
         response = yield crawler.enqueue_request(scrapy.Request(url))
         base = extract_feed(response)
 
         self = base["links"].get("self")
         if self and self != url:
-            crawler.engine.spider.logger.info("document {!r} came from {!r}".format(url, self))
+            progress.info("document {!r} came from {!r}".format(url, self))
             url = self
 
         current = base["links"].get("current")
         if current:
             if url != current:
-                crawler.engine.spider.logger.info("document {!r} is not current, trying again from {!r}".format(url, current))
+                progress.info("document {!r} is not current, trying again from {!r}".format(url, current))
                 url = current
                 continue
         elif base["archive"]:
@@ -88,11 +92,13 @@ def full_history(crawler, url):
     if base["complete"]:
         result = base["entries"]
     elif "prev-archive" in base["links"]:
-        result = yield from_rfc5005(crawler, base, url)
+        result = yield from_rfc5005(crawler, progress, base, url)
     elif wordpress_generated(response.headers.getlist("Link"), base["generator"]):
-        result = yield from_wordpress(crawler, url)
+        result = yield from_wordpress(crawler, progress, url)
     else:
         raise FeedError("document {!r} is not complete but doesn't link to archives".format(url))
+
+    progress.info("found {} entries in full history of {!r}".format(len(result), url))
 
     # assume entries with identical or missing timestamps were listed in
     # reverse order
@@ -103,16 +109,21 @@ def full_history(crawler, url):
 
 
 @defer.inlineCallbacks
-def from_rfc5005(crawler, base, url):
+def from_rfc5005(crawler, progress, base, url):
     entries = base["entries"]
     seen = set()
 
     for entry in entries:
         seen.add(entry["id"])
 
+    archive_count = 1
     while "prev-archive" in base["links"]:
         later_archive = url
         url = base["links"]["prev-archive"]
+
+        progress.info("found {} entries; getting archive page #{}: {!r}".format(len(entries), archive_count, url))
+        archive_count += 1
+
         response = yield crawler.enqueue_request(scrapy.Request(
             url,
             headers={
@@ -127,7 +138,7 @@ def from_rfc5005(crawler, base, url):
                 entries.append(entry)
                 seen.add(entry["id"])
             else:
-                crawler.engine.spider.logger.debug("discarding duplicate entry {!r}".format(entry["id"]))
+                progress.debug("discarding duplicate entry {!r}".format(entry["id"]))
 
     defer.returnValue(entries)
 
@@ -151,7 +162,7 @@ def wordpress_generated(links, generator):
 
 
 @defer.inlineCallbacks
-def from_wordpress(crawler, url):
+def from_wordpress(crawler, progress, url):
     url = query_string_replace(
         url,
         feed="atom",
@@ -159,6 +170,7 @@ def from_wordpress(crawler, url):
         orderby="modified",
     )
 
+    progress.info("looks like a WordPress feed; rewriting to {!r}".format(url))
     response = yield crawler.enqueue_request(scrapy.Request(url))
     feed = extract_feed(response)
     url = feed["links"].get("self") or response.headers.get("Content-Location") or response.url
@@ -166,6 +178,7 @@ def from_wordpress(crawler, url):
     entries = feed["entries"]
     for page in itertools.count(2):
         next_url = query_string_replace(url, paged=page)
+        progress.info("found {} entries; getting {!r}".format(len(entries), next_url))
 
         response = yield crawler.enqueue_request(scrapy.Request(
             next_url,
@@ -177,6 +190,7 @@ def from_wordpress(crawler, url):
             },
         ))
         if response.status == 404:
+            progress.info("page {} does not exist yet; last page was {!r}".format(page, url))
             break
 
         url = next_url
