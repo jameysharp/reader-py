@@ -44,6 +44,9 @@ class Progress(object):
     def info(self, msg):
         self.log(logging.INFO, msg)
 
+    def warning(self, msg):
+        self.log(logging.WARNING, msg)
+
 
 class ExportHandler(tornado.web.RequestHandler):
     def initialize(self, crawler):
@@ -157,7 +160,7 @@ def get_history(crawler, feed, progress, reverse_url):
     # parallelism, subject to any crawler policies which limit concurrent
     # requests to the same server.
     by_source = yield defer.gatherResults([
-        expand_source(crawler, source, frozenset(ids))
+        expand_source(crawler, source, frozenset(ids), progress)
         for source, ids in group_by_source(entries)
     ], consumeErrors=True)
 
@@ -192,13 +195,17 @@ def fetch_feed_doc(crawler, feed, headers=None):
 
 
 @defer.inlineCallbacks
-def expand_source(crawler, source, ids):
+def expand_source(crawler, source, ids, progress):
     doc = yield fetch_feed_doc(crawler, source, {
         "Cache-Control": "max-stale",
     })
 
     entries = {}
-    for entry in doc.entries:
+    for idx, entry in enumerate(doc.entries):
+        if not entry.get('id'):
+            progress.warning("missing id for entry #{} of {!r}".format(idx, source))
+            continue
+
         if entry.id not in ids:
             continue
 

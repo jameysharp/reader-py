@@ -50,6 +50,7 @@ def extract_feed(response):
             "source": url,
         }
         for e in doc.entries
+        if e.get('id')
     ]
 
     return {
