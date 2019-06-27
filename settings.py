@@ -46,7 +46,3 @@ EXTENSIONS = {
     # not really meaningful when crawls are triggered by incoming requests:
     'scrapy.extensions.logstats.LogStats': None,
 }
-
-DEFAULT_REQUEST_HEADERS = {
-    "Cache-Control": "max-stale", # XXX: only during development
-}

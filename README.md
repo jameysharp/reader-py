@@ -46,10 +46,6 @@ This implementation currently:
   very small number of feeds which implement the RFC5005 standard.
   (Details on that below.) Any other RSS or Atom feed won't work at all.
 
-- caches extremely aggressively. Once it has fetched a feed from an
-  upstream site, it will never fetch that feed again. This makes it
-  pretty useless as an actual feed reader for day-to-day use.
-
 - may overwhelm your web browser if you access a feed with a
   particularly large number of posts. It will send you summary data
   about all of them at once, and worse, your browser may try to preload
