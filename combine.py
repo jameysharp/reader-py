@@ -75,12 +75,9 @@ class ExportHandler(tornado.web.RequestHandler):
         entries = finished[feed]
 
         if isinstance(entries, Failure):
-            try:
-                entries.raiseException()
-            except feeds.FeedError as exc:
-                self.set_status(400)
-                self.render("feed-error.html", feed=feed, message=str(exc))
-                return
+            self.set_status(400)
+            self.render("feed-error.html", feed=feed, message=repr(entries.value))
+            return
 
         title = (yield fetch_feed_doc(self.crawler, feed, {
             "Cache-Control": "max-stale",

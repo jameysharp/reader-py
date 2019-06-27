@@ -85,7 +85,7 @@ def full_history(crawler, url, progress=None):
                 url = current
                 continue
         elif base["archive"]:
-            raise FeedError("document {!r} is an archive and doesn't specify the current document".format(url))
+            raise FeedError("document {!r} has an <archive> tag without a rel='current' link; please try again with the current feed instead".format(url))
 
         # found the right subscription document
         break
@@ -97,7 +97,7 @@ def full_history(crawler, url, progress=None):
     elif wordpress_generated(response.headers.getlist("Link"), base["generator"]):
         result = yield from_wordpress(crawler, progress, url)
     else:
-        raise FeedError("document {!r} is not complete but doesn't link to archives".format(url))
+        raise FeedError("document {!r} does not have either a <complete> tag or a rel='prev-archive' link".format(url))
 
     progress.info("found {} entries in full history of {!r}".format(len(result), url))
 
