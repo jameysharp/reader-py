@@ -62,6 +62,7 @@ class ExportHandler(tornado.web.RequestHandler):
                     feed=feed,
                     progress=progress,
                     crawler=self.crawler,
+                    base_url="{}://{}".format(self.request.protocol, self.request.host),
                     reverse_url=self.application.reverse_url,
                 ).addBoth(record_finished, feed)
 
@@ -148,7 +149,7 @@ def group_by_source(entries):
 
 
 @defer.inlineCallbacks
-def get_history(crawler, feed, progress, reverse_url):
+def get_history(crawler, feed, progress, base_url, reverse_url):
     entries = yield feeds.full_history(crawler, feed, progress)
 
     # In this demo where we share an HTTP cache between the two parts, I don't
@@ -169,7 +170,7 @@ def get_history(crawler, feed, progress, reverse_url):
     for entry in entries:
         entry.update(expanded_entries.pop(entry["id"]))
         if "link" not in entry:
-            entry["link"] = reverse_url("entry", entry["hash"], entry["source"])
+            entry["link"] = base_url + reverse_url("entry", entry["hash"], entry["source"])
 
     # expanded_entries better have exactly the IDs from entries
     assert not expanded_entries

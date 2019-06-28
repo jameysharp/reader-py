@@ -15,7 +15,7 @@
 <xsl:template match="/">
 <html>
 <head>
-	<meta name="generator" content="https://github.com/jameysharp/css-feed-reader" />
+	<meta name="generator" content="https://github.com/jameysharp/reader-py" />
 	<meta name="viewport" content="width=device-width" />
 	<title><xsl:value-of select="//atom:feed/atom:title"/></title>
 	<style>
@@ -25,7 +25,7 @@
 			height: 100%;
 			margin: 0;
 			display: flex;
-			flex-direction: column;
+			flex-direction: column-reverse;
 		}
 		#top, #left {
 			margin: 0;
@@ -45,23 +45,23 @@
 			flex-shrink: 0;
 			flex-grow: 0;
 		}
-		#top label.preload {
+		#top a.preload {
 			background-color: #4A1600;
 			background-position: center;
 			background-repeat: no-repeat;
 			width: 2.2em;
 			height: 2.2em;
 		}
-		#top label.preload[for] {
+		#top a.preload[href] {
 			background-color: #93320C;
 		}
-		#top label.preload[for]:hover {
+		#top a.preload[href]:hover {
 			background-color: #4A1600;
 		}
-		label.before {
+		a.before {
 			background-image: url('<xsl:value-of select="$iconprev"/>');
 		}
-		label.after {
+		a.after {
 			background-image: url('<xsl:value-of select="$iconnext"/>');
 		}
 		#top > .title {
@@ -80,6 +80,10 @@
 		}
 		#left time {
 			color: #555;
+		}
+		#left a {
+			text-decoration: none;
+			color: black;
 		}
 		#left ul {
 			padding: 0;
@@ -118,17 +122,8 @@
 		#expand-sidebar:checked ~ #top #expand-sidebar-btn {
 			margin-left: 30%;
 		}
-		#content {
-			flex-grow: 1;
-			display: flex;
-		}
-		#content > * {
-			display: flex;
-		}
-		#content * {
-			flex-grow: 1;
-		}
 		iframe {
+			flex-grow: 1;
 			margin: 0;
 			padding: 0;
 			border: 0;
@@ -139,18 +134,27 @@
 	</style>
 </head>
 <body>
+	<script>
+		document.body.addEventListener("click", function(e) {
+			var target = e.target;
+			while(target != null) {
+				if(target.nodeName == "A") {
+					window.frames[0].frameElement.src = target.href;
+					e.preventDefault();
+					return;
+				}
+				target = target.parentElement;
+			}
+		}, true);
+	</script>
+
 	<input type="checkbox" id="expand-sidebar" />
-	<xsl:apply-templates select="//atom:entry" mode="radio" />
+
+	<iframe name="content" src="{//atom:entry[1]/atom:link[@rel='alternate']/@href}"/>
 
 	<div id="top">
 		<label for="expand-sidebar" id="expand-sidebar-btn">&#187;</label>
 		<xsl:apply-templates select="//atom:entry" mode="top" />
-	</div>
-
-	<div id="content">
-		<noscript id="preloadContent">
-		<xsl:apply-templates select="//atom:entry" mode="iframe" />
-		</noscript>
 	</div>
 
 	<div id="left">
@@ -158,94 +162,49 @@
 		<xsl:apply-templates select="//atom:entry" mode="left" />
 		</ul>
 	</div>
-
-	<!-- progressive enhancements -->
-	<script><xsl:text>
-		(function() {
-			var iframes = document.createElement("div");
-			function preload(pageid, src) {
-				// get the radio button and create a new iframe
-				var page = document.getElementById(pageid);
-				var iframe = document.createElement("iframe");
-
-				// this should match the classes in the noscript tag
-				iframe.className = "preload " + pageid;
-
-				if(page.checked)
-					// immediately load the page we're displaying first
-					iframe.src = src;
-				else
-					// otherwise delay until someone navigates to this page
-					page.addEventListener("change", function() {
-						iframe.src = src;
-					}, { once: true });
-
-				iframes.appendChild(iframe);
-			}</xsl:text>
-			<xsl:apply-templates select="//atom:entry" mode="js" />
-			<xsl:text>
-
-			// finally, replace the noscript tag with the new iframes
-			document.getElementById("content").replaceChild(iframes, document.getElementById("preloadContent"));
-		})();
-	</xsl:text></script>
 </body>
 </html>
 </xsl:template>
 
 <xsl:template match="*" mode="style">
-		#page<xsl:value-of select="position()"/>:checked ~ * .page<xsl:value-of select="position()"/> {
+		iframe[src="<xsl:value-of select="atom:link[@rel='alternate']/@href"/>"] ~ * .page<xsl:value-of select="position()"/> {
 			display: block;
 		}
-		#page<xsl:value-of select="position()"/>:checked ~ #left label[for="page<xsl:value-of select="position()"/>"] {
+		iframe[src="<xsl:value-of select="atom:link[@rel='alternate']/@href"/>"] ~ #left a[href="<xsl:value-of select="atom:link[@rel='alternate']/@href"/>"] {
 			font-weight: bold;
 		}<!--
 --></xsl:template>
 
-<xsl:template match="*" mode="radio">
-	<input type="radio" name="page" id="page{position()}">
-		<xsl:if test="position() = 1">
-			<xsl:attribute name="checked">checked</xsl:attribute>
-		</xsl:if>
-	</input>
-</xsl:template>
-
 <xsl:template match="*" mode="top">
-	<label class="preload page{position()} before">
+	<a class="preload page{position()} before">
 		<xsl:if test="position() &gt; 1">
-			<xsl:attribute name="for">page<xsl:value-of select="position() - 1"/></xsl:attribute>
+			<xsl:attribute name="href"><xsl:value-of select="preceding-sibling::*[1]/atom:link[@rel='alternate']/@href"/></xsl:attribute>
+			<xsl:attribute name="target">content</xsl:attribute>
 		</xsl:if>
-	</label>
+	</a>
 	<div class="preload page{position()} title">
 		<xsl:value-of select="atom:title"/>
 		<time datetime="{atom:published}">
 			<xsl:value-of select="substring-before(atom:published, 'T')"/>
 		</time>
 	</div>
-	<label class="preload page{position()} after">
+	<a class="preload page{position()} after">
 		<xsl:if test="position() &lt; last()">
-			<xsl:attribute name="for">page<xsl:value-of select="position() + 1"/></xsl:attribute>
+			<xsl:attribute name="href"><xsl:value-of select="following-sibling::*[1]/atom:link[@rel='alternate']/@href"/></xsl:attribute>
+			<xsl:attribute name="target">content</xsl:attribute>
 		</xsl:if>
-	</label>
-</xsl:template>
-
-<xsl:template match="*" mode="iframe">
-	<iframe class="preload page{position()}" src="{atom:link[@rel='alternate']/@href}"/>
+	</a>
 </xsl:template>
 
 <xsl:template match="*" mode="left">
 	<li>
-		<label for="page{position()}">
+		<a href="{atom:link[@rel='alternate']/@href}" target="content">
 			<xsl:value-of select="atom:title"/>
 			<time datetime="{atom:published}">
 				<xsl:value-of select="substring-before(atom:published, 'T')"/>
 			</time>
-		</label>
+		</a>
 	</li>
 </xsl:template>
-
-<xsl:template match="*" mode="js">
-			preload("page<xsl:value-of select="position()"/>", "<xsl:value-of select="atom:link[@rel='alternate']/@href"/>");<!--
---></xsl:template>
 
 </xsl:stylesheet>

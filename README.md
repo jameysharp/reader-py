@@ -47,10 +47,8 @@ This implementation currently:
   (Details on that below.) Any other RSS or Atom feed won't work at all.
 
 - may overwhelm your web browser if you access a feed with a
-  particularly large number of posts. It will send you summary data
-  about all of them at once, and worse, your browser may try to preload
-  many or all of the entries, especially if you have JavaScript
-  disabled. (But it should at least _work_ without JavaScript!)
+  particularly large number of posts, because it will send you summary
+  data about all of them at once.
 
 Also, feed readers usually help you remember what you're reading, but
 this one doesn't retain anything outside of basic access logs and the
@@ -125,26 +123,25 @@ the feed scrolls to that part of the history. And if you need to free up
 some storage, you can throw away everything except this list and lazily
 reconstruct the rest again later.
 
-No JavaScript required
-----------------------
+Almost no JavaScript required
+-----------------------------
 
 The UI for this comes from another demo I did, in my [css-feed-reader][]
-repository. It is fully functional even if you have JavaScript disabled,
+repository. It is mostly functional even if you have JavaScript disabled,
 but it has a level of client-side interactivity that's usually only seen
 in JavaScript-heavy sites. I was able to implement all the buttons using
 only CSS.
 
 [css-feed-reader]: https://github.com/jameysharp/css-feed-reader
 
-It isn't quite practical, though, because I couldn't find a way to make
-browsers load only the current-visible entry. For a large feed, loading
-all the entries at once would be really bad. So there's a bit of
-JavaScript which, if it gets a chance to run, _disables_ loading all the
-not-currently-visible entries until you go to actually read them. That
-means that in practice you probably don't want to try this with
-JavaScript disabled, so perhaps I should have just required JavaScript
-in the first place. But it was a neat experiment and anyway, this is
-only a prototype.
+I don't know how to get the top nav bar and the highlighted entry in the
+left sidebar to update without JavaScript, though. In previous versions
+this "worked" by creating a separate `<iframe>` for each post and using
+CSS to determine which one should be visible. But the consequence was
+that browsers would load the contents of all posts immediately, which
+was awful if the feed had a lot of posts. So I've switched to a simpler
+approach which uses JavaScript to ensure that the CSS rules can fire
+when the single iframe gets navigated.
 
 Client-side templating with XSLT
 --------------------------------
@@ -155,7 +152,7 @@ processing instruction pointing to the template that generates the full
 reading UI.
 
 This is a huge reduction in data transfer sizes, because the HTML that
-implements my demo UI expands information from every feed entry in five
+implements my demo UI expands information from every feed entry in three
 different places. Also, the template is cacheable, so on subsequent
 loads the only thing the server has to send is the unique parts of the
 feed you're currently interested in. (And then of course everything is
