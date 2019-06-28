@@ -58,6 +58,7 @@ application = tornado.web.Application(
     ],
     static_path="static/",
     template_path="templates/",
+    debug="PRODUCTION" not in os.environ,
 )
 application.listen(int(os.environ.get("PORT", 8888)))
 
