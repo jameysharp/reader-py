@@ -139,8 +139,11 @@
 			var target = e.target;
 			while(target != null) {
 				if(target.nodeName == "A") {
-					window.frames[0].frameElement.src = target.href;
-					e.preventDefault();
+					var iframe = window.frames[0].frameElement;
+					if(iframe.name == target.target) {
+						iframe.src = target.href;
+						e.preventDefault();
+					}
 					return;
 				}
 				target = target.parentElement;
