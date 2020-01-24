@@ -1,0 +1,21 @@
+<html>
+<head>
+	<title>{{ title }}</title>
+	<link rel="stylesheet" href="{{ static_url('reader.css') }}" />
+	<base target="_parent" />
+</head>
+<body id="all-pages">
+	<ul>
+{% for entry in entries %}
+	<li>
+		<a href="{{ reverse_url('page', hash_entry_id(entry['id']), feed) }}">
+			{{ entry['title'] }}
+			<time datetime="{{ entry['published'] }}">
+				{{ entry['published'].split('T', 1)[0] }}
+			</time>
+		</a>
+	</li>
+{% end %}
+	</ul>
+</body>
+</html>

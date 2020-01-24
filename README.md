@@ -40,15 +40,10 @@ If you think you can do better... you probably can. Please do!
 Limitations
 ===========
 
-This implementation currently:
-
-- can fetch full history from most WordPress feeds, as well as from the
-  very small number of feeds which implement the RFC5005 standard.
-  (Details on that below.) Any other RSS or Atom feed won't work at all.
-
-- may overwhelm your web browser if you access a feed with a
-  particularly large number of posts, because it will send you summary
-  data about all of them at once.
+This implementation currently can fetch full history from most WordPress
+feeds, as well as from the very small number of feeds which implement
+the RFC5005 standard. (Details on that below.) Any other RSS or Atom
+feed won't work at all.
 
 Also, feed readers usually help you remember what you're reading, but
 this one doesn't retain anything outside of basic access logs and the
@@ -61,9 +56,9 @@ day-to-day use.
 How it works
 ============
 
-Since this is a prototype and technology demo, I've thrown in quite a
-few unusual tricks. I hope you'll find inspiration from some of them
-even when you're working on unrelated projects.
+Since this is a prototype and technology demo, I've thrown in several
+unusual tricks. I hope you'll find inspiration from some of them even
+when you're working on unrelated projects.
 
 Full history
 ------------
@@ -122,44 +117,6 @@ you can delay fetching any additional details until the person browsing
 the feed scrolls to that part of the history. And if you need to free up
 some storage, you can throw away everything except this list and lazily
 reconstruct the rest again later.
-
-Almost no JavaScript required
------------------------------
-
-The UI for this comes from another demo I did, in my [css-feed-reader][]
-repository. It is mostly functional even if you have JavaScript disabled,
-but it has a level of client-side interactivity that's usually only seen
-in JavaScript-heavy sites. I was able to implement all the buttons using
-only CSS.
-
-[css-feed-reader]: https://github.com/jameysharp/css-feed-reader
-
-I don't know how to get the top nav bar and the highlighted entry in the
-left sidebar to update without JavaScript, though. In previous versions
-this "worked" by creating a separate `<iframe>` for each post and using
-CSS to determine which one should be visible. But the consequence was
-that browsers would load the contents of all posts immediately, which
-was awful if the feed had a lot of posts. So I've switched to a simpler
-approach which uses JavaScript to ensure that the CSS rules can fire
-when the single iframe gets navigated.
-
-Client-side templating with XSLT
---------------------------------
-
-As far as I can tell, all the common browsers support XSLT stylesheets.
-So I chose to serve up more-or-less valid Atom feeds, with a stylesheet
-processing instruction pointing to the template that generates the full
-reading UI.
-
-This is a huge reduction in data transfer sizes, because the HTML that
-implements my demo UI expands information from every feed entry in three
-different places. Also, the template is cacheable, so on subsequent
-loads the only thing the server has to send is the unique parts of the
-feed you're currently interested in. (And then of course everything is
-gzip'd as well.)
-
-I'm not sure what trade-offs this approach has (maybe slower
-time-to-first-render?) but I'd love to see more sites try it.
 
 Integrated web crawler and web server
 -------------------------------------

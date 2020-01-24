@@ -54,6 +54,7 @@ application = tornado.web.Application(
         (r"/$", HomeHandler, {}, "home"),
         (r"/history/(.+)", FeedHandler),
         (r"/read/(.+)", combine.ExportHandler, {"crawler": crawler}, "read"),
+        (r"/page/([^/]+)/(.+)", combine.PageHandler, {"crawler": crawler}, "page"),
         (r"/entry/([^/]+)/(.+)", combine.EntryHandler, {"crawler": crawler}, "entry"),
     ],
     static_path="static/",

@@ -84,8 +84,45 @@ class ExportHandler(tornado.web.RequestHandler):
             "Cache-Control": "max-stale",
         })).feed.title
 
-        self.set_header("Content-Type", "application/xml")
-        self.render("export-atom.xml", title=title, entries=entries)
+        self.set_header("Cache-Control", "max-age=60, stale-while-revalidate=600, stale-if-error=3600")
+        self.render("all-pages.html", title=title, feed=feed, entries=entries, hash_entry_id=hash_entry_id)
+
+
+class PageHandler(tornado.web.RequestHandler):
+    def initialize(self, crawler):
+        self.crawler = crawler
+
+    @tornado.gen.coroutine
+    def get(self, entry_hash, feed):
+        entries = finished.get(feed)
+
+        if entries is not None and not isinstance(entries, Failure):
+            title = (yield fetch_feed_doc(self.crawler, feed, {
+                "Cache-Control": "max-stale",
+            })).feed.title
+
+            for idx, entry in enumerate(entries):
+                if hash_entry_id(entry['id']) != entry_hash: continue
+
+                prev_entry = None
+                if idx > 0:
+                    prev_entry = self.reverse_url('page', hash_entry_id(entries[idx - 1]['id']), feed)
+
+                next_entry = None
+                if idx < len(entries) - 1:
+                    next_entry = self.reverse_url('page', hash_entry_id(entries[idx + 1]['id']), feed)
+
+                self.render(
+                    "view-page.html",
+                    title=title,
+                    feed=feed,
+                    entry=entry,
+                    prev_entry=prev_entry,
+                    next_entry=next_entry,
+                )
+                return
+
+        self.redirect(self.reverse_url('read', feed))
 
 
 class EntryHandler(tornado.web.RequestHandler):
@@ -138,7 +175,7 @@ def pick_distinct_hashes(entries):
 
 
 def hash_entry_id(entry_id):
-    return base64.urlsafe_b64encode(sha256(entry_id.encode()).digest()).decode("ascii")
+    return base64.urlsafe_b64encode(sha256(entry_id.encode()).digest()).decode("ascii").rstrip('=')
 
 
 def group_by_source(entries):

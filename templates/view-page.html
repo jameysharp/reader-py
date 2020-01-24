@@ -1,0 +1,28 @@
+<html>
+<head>
+	<meta name="generator" content="https://github.com/jameysharp/reader-py" />
+	<meta name="viewport" content="width=device-width" />
+	<title>{{ entry['title'] }} &mdash; {{ title }}</title>
+	<link rel="stylesheet" href="{{ static_url('reader.css') }}" />
+</head>
+<body id="view-page">
+	<input type="checkbox" id="expand-sidebar" />
+
+	<iframe id="content" src="{{ entry['link'] }}"></iframe>
+
+	<div id="navbar">
+		<label for="expand-sidebar" id="expand-sidebar-btn">&#187;</label>
+		<a class="before"{% if prev_entry %} href="{{ prev_entry }}"{% end %}></a>
+		<div class="title">
+			{{ entry['title'] }}
+			<time datetime="{{ entry['published'] }}">
+				{{ entry['published'].split('T', 1)[0] }}
+			</time>
+		</div>
+		<a class="after"{% if next_entry %} href="{{ next_entry }}"{% end %}></a>
+	</div>
+
+	<iframe id="sidebar" src="{{ reverse_url('read', feed) }}"></iframe>
+
+</body>
+</html>
