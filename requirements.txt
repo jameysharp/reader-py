@@ -12,7 +12,7 @@ feedparser==5.2.1
 hyperlink==18.0.0
 idna==2.8
 incremental==17.5.0
-lxml==4.3.1
+lxml==4.9.1
 packaging==19.0
 parsel==1.5.1
 pyasn1==0.4.5
