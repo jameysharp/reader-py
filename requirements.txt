@@ -2,7 +2,7 @@ asn1crypto==0.24.0
 attrs==18.2.0
 Automat==0.7.0
 backports-abc==0.5
-certifi==2018.11.29
+certifi==2022.12.7
 cffi==1.12.1
 characteristic==14.3.0
 constantly==15.1.0
